@@ -1,7 +1,5 @@
-import React, {PureComponent, ComponentClass, StatelessComponent} from 'react'
-
-type UnboundAdditionalProps = object
-type BoundAdditionalProps = object
+import * as React from "react"
+import { ComponentClass, PureComponent, StatelessComponent } from "react"
 
 interface NextPromise {
   value: Promise<any>
@@ -19,6 +17,14 @@ interface TubeGenerator<S> {
 
 type TubeGeneratorFunction<S> = (...args: any[]) => TubeGenerator<S>
 
+interface UnboundAdditionalProps {
+  [k: string]: any
+}
+
+interface BoundAdditionalProps {
+  [k: string]: any
+}
+
 export interface EmitterProp {
   (...args: any[]): Promise<void>
   isRunning: boolean
@@ -28,12 +34,17 @@ export interface EmitterProp {
 }
 
 enum ConcurrencyType {
-  Racey = 'RACEY',
-  Restartable = 'RESTARTABLE',
+  Racey = "RACEY",
+  Restartable = "RESTARTABLE"
 }
 
-export default function initialize<S extends object>(initialState: S) {
-  const {Provider, Consumer} = React.createContext<S>(initialState)
+// TODO
+interface initializeResult {}
+
+export default function initialize<S extends object>(
+  initialState: S
+): initializeResult {
+  const { Provider, Consumer } = React.createContext<S>(initialState)
 
   let state: S = initialState
   const withTubes: WithTube[] = []
@@ -43,13 +54,13 @@ export default function initialize<S extends object>(initialState: S) {
     // https://github.com/Microsoft/TypeScript/pull/13288 lands
     //
     // TODO: Event log
-    state = {...(state as object), ...(partialState as object)} as S
+    state = { ...(state as object), ...(partialState as object) } as S
 
     withTubes.forEach(t => t.forceUpdate())
   }
 
   class WithTube extends PureComponent<{}, {}> {
-    public constructor(props) {
+    public constructor(props: {}) {
       super(props)
 
       withTubes.push(this)
@@ -94,6 +105,7 @@ export default function initialize<S extends object>(initialState: S) {
     constructor(f: TubeGeneratorFunction<S>) {
       this.f = f
       this.concurrencyType = ConcurrencyType.Racey
+      this.children = []
     }
 
     public do = (...args: any[]): Promise<void> => {
@@ -131,18 +143,23 @@ export default function initialize<S extends object>(initialState: S) {
   }
 
   function emitterProp(e: Emitter): EmitterProp {
-    return Object.assign(() => e.do(...arguments), {
-      isRunning: false,
-      isIdle: true,
-      called: 0,
-      cancelAll: e.cancelAll,
-    })
+    return Object.assign(
+      function() {
+        return e.do(...arguments)
+      },
+      {
+        isRunning: false,
+        isIdle: true,
+        called: 0,
+        cancelAll: e.cancelAll
+      }
+    )
   }
 
   function deriveEmitterProps(
     additionalProps: UnboundAdditionalProps
   ): BoundAdditionalProps {
-    const boundAdditionalProps = {}
+    const boundAdditionalProps: BoundAdditionalProps = {}
 
     for (const [k, v] of Object.entries(additionalProps)) {
       if (v instanceof Emitter) {
@@ -165,7 +182,7 @@ export default function initialize<S extends object>(initialState: S) {
   ) {
     // TODO: Initialize `Emmiter`s here to handle multiple `Component` instances
     // TODO: Should cache additional props as agressively as possible
-    return props => (
+    return (props: any) => (
       <Consumer>
         {state => (
           <Component
@@ -177,5 +194,5 @@ export default function initialize<S extends object>(initialState: S) {
     )
   }
 
-  return {WithTube, emitter, connect}
+  return { WithTube, emitter, connect }
 }
