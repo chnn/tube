@@ -1,0 +1,82 @@
+body, #root, .app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Helvetica Neue, Helvetica, sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+}
+
+.app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.counter {
+  width: 200px;
+  padding: 25px 40px;
+  background: #f1f2f6;
+  border-radius: 3px;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+hr {
+  border-style: none;
+  border-bottom: 1px solid #ced6e0;
+}
+
+table {
+  font-family: Helvetica Neue, Helvetica, sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+}
+
+td {
+  margin: 0;
+  padding: 4px;
+}
+
+tr td:first-child {
+  padding-left: 0;
+}
+
+tr td:last-child {
+  text-align: right;
+  padding-right: 0;
+}
+
+button {
+ font-size: 20px;
+ background: #7bed9f;
+ border: none;
+ border-radius: 3px;
+ padding: 5px 10px;;
+ color: white;
+ font-weight: 500;
+ cursor: pointer;
+ margin-top: 15px;
+ outline: none;
+}
+
+@keyframes buttonhover {
+  from {
+    background: #7bed9f;
+  }
+
+  to {
+    background: #2ed573;
+  }
+}
+
+button:hover {
+  background: #2ed573;
+  animation: 0.1s ease-in buttonhover;
+}
+
+button:active {
+  background: #7bed9f;
+}

@@ -1,21 +1,11 @@
 import * as React from "react"
 import { ComponentClass, PureComponent, StatelessComponent } from "react"
 
-interface NextPromise {
-  value: Promise<any>
-  done: boolean
-}
+type Next<S> = Partial<S> | Promise<any>
 
-interface NextState<S> {
-  value: Partial<S>
-  done: boolean
-}
+type TubeGenerator<S> = Iterator<Next<S>>
 
-interface TubeGenerator<S> {
-  next: () => NextState<S> | NextPromise
-}
-
-type TubeGeneratorFunction<S> = (...args: any[]) => TubeGenerator<S>
+type TubeGeneratorFunction<S> = (state: S, ...args: any[]) => TubeGenerator<S>
 
 interface UnboundAdditionalProps {
   [k: string]: any
@@ -25,7 +15,7 @@ interface BoundAdditionalProps {
   [k: string]: any
 }
 
-export interface EmitterProp {
+export interface TaskProp {
   (...args: any[]): Promise<void>
   isRunning: boolean
   isIdle: boolean
@@ -38,16 +28,26 @@ enum ConcurrencyType {
   Restartable = "RESTARTABLE"
 }
 
-// TODO
-interface initializeResult {}
+type TaskCreator<S> = (f: TubeGeneratorFunction<S>) => any
+
+type Connect<S> = (
+  additionalProps: ((state: S) => UnboundAdditionalProps),
+  c: ComponentClass<any, any> | StatelessComponent<any>
+) => ((props: any) => JSX.Element)
+
+interface InitializeResult<S> {
+  Tube: ComponentClass
+  connect: Connect<S>
+  task: TaskCreator<S>
+}
 
 export default function initialize<S extends object>(
   initialState: S
-): initializeResult {
+): InitializeResult<S> {
   const { Provider, Consumer } = React.createContext<S>(initialState)
+  const tubes: Tube[] = []
 
   let state: S = initialState
-  const withTubes: WithTube[] = []
 
   function updateState(partialState: Partial<S>) {
     // Lots of yucky type assertions here until
@@ -56,14 +56,14 @@ export default function initialize<S extends object>(
     // TODO: Event log
     state = { ...(state as object), ...(partialState as object) } as S
 
-    withTubes.forEach(t => t.forceUpdate())
+    tubes.forEach(t => t.forceUpdate())
   }
 
-  class WithTube extends PureComponent<{}, {}> {
+  class Tube extends PureComponent<{}, {}> {
     public constructor(props: {}) {
       super(props)
 
-      withTubes.push(this)
+      tubes.push(this)
     }
 
     public render() {
@@ -71,7 +71,7 @@ export default function initialize<S extends object>(
     }
   }
 
-  class EmitterChild {
+  class ChildTask {
     private g: TubeGenerator<S>
 
     constructor(g: TubeGenerator<S>) {
@@ -80,10 +80,12 @@ export default function initialize<S extends object>(
 
     public async start() {
       // g.next until done while not cancelled, then call instance.setState
-      let next = this.g.next()
+      let next: IteratorResult<Next<S>> = this.g.next()
 
       while (!next.done) {
-        next = await this.g.next()
+        const value = await next.value
+
+        next = await this.g.next(value)
       }
 
       // Last yielded value assumed to be a state update
@@ -97,10 +99,10 @@ export default function initialize<S extends object>(
     public cancel() {}
   }
 
-  class Emitter {
+  class Task {
     private f: TubeGeneratorFunction<S>
     private concurrencyType: ConcurrencyType
-    private children: EmitterChild[]
+    private children: ChildTask[]
 
     constructor(f: TubeGeneratorFunction<S>) {
       this.f = f
@@ -115,8 +117,8 @@ export default function initialize<S extends object>(
         }
       }
 
-      const g = this.f(...args)
-      const child = new EmitterChild(g)
+      const g = this.f(state, ...args)
+      const child = new ChildTask(g)
 
       this.children.push(child)
 
@@ -129,41 +131,41 @@ export default function initialize<S extends object>(
 
     public cancelAll = (): void => {}
 
-    public racey(): Emitter {
+    public racey(): Task {
       this.concurrencyType = ConcurrencyType.Racey
 
       return this
     }
 
-    public restartable(): Emitter {
+    public restartable(): Task {
       this.concurrencyType = ConcurrencyType.Restartable
 
       return this
     }
   }
 
-  function emitterProp(e: Emitter): EmitterProp {
+  function taskProp(t: Task): TaskProp {
     return Object.assign(
       function() {
-        return e.do(...arguments)
+        return t.do(...arguments)
       },
       {
         isRunning: false,
         isIdle: true,
         called: 0,
-        cancelAll: e.cancelAll
+        cancelAll: t.cancelAll
       }
     )
   }
 
-  function deriveEmitterProps(
+  function deriveTaskProps(
     additionalProps: UnboundAdditionalProps
   ): BoundAdditionalProps {
     const boundAdditionalProps: BoundAdditionalProps = {}
 
     for (const [k, v] of Object.entries(additionalProps)) {
-      if (v instanceof Emitter) {
-        boundAdditionalProps[k] = emitterProp(v)
+      if (v instanceof Task) {
+        boundAdditionalProps[k] = taskProp(v)
       } else {
         boundAdditionalProps[k] = v
       }
@@ -172,8 +174,8 @@ export default function initialize<S extends object>(
     return boundAdditionalProps
   }
 
-  function emitter(f: TubeGeneratorFunction<S>): Emitter {
-    return new Emitter(f)
+  function task(f: TubeGeneratorFunction<S>): Task {
+    return new Task(f)
   }
 
   function connect(
@@ -181,18 +183,19 @@ export default function initialize<S extends object>(
     Component: ComponentClass | StatelessComponent
   ) {
     // TODO: Initialize `Emmiter`s here to handle multiple `Component` instances
-    // TODO: Should cache additional props as agressively as possible
+    // TODO: Should cache additional props as agressively as possible (perhaps
+    // store a “revision counter” for each task prop, a la glimmer
     return (props: any) => (
       <Consumer>
         {state => (
           <Component
             {...props}
-            {...deriveEmitterProps(additionalPropsFn(state))}
+            {...deriveTaskProps(additionalPropsFn(state))}
           />
         )}
       </Consumer>
     )
   }
 
-  return { WithTube, emitter, connect }
+  return { Tube, task, connect }
 }

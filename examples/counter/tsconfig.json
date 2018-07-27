@@ -5,7 +5,7 @@
     "lib": ["es2017", "dom"],
     "allowJs": false,
     "jsx": "react",
-    "declaration": true,
+    "declaration": false,
     "sourceMap": true,
     "outFile": "index.js",
     "outDir": "dist",

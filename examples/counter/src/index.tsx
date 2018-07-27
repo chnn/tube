@@ -2,5 +2,11 @@ import * as React from "react"
 import { render } from "react-dom"
 
 import App from "./App"
+import { Tube } from "./store"
 
-render(<App />, document.getElementById("app"))
+render(
+  <Tube>
+    <App />
+  </Tube>,
+  document.getElementById("root")
+)
