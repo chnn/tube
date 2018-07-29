@@ -46,6 +46,23 @@ interface InitializeResult<S> {
   task: TaskCreator<S>
 }
 
+interface Deferred {
+  promise: Promise<any>
+  resolve: Function
+  reject: Function
+}
+
+function deferred(): Deferred {
+  const d: any = {}
+
+  d.promise = new Promise((resolve, reject) => {
+    d.resolve = resolve
+    d.reject = reject
+  })
+
+  return d as Deferred
+}
+
 export default function initialize<S extends object>(
   initialState: S
 ): InitializeResult<S> {
@@ -109,6 +126,7 @@ export default function initialize<S extends object>(
     private f: TubeGeneratorFunction<S>
     private concurrencyType: ConcurrencyType
     private children: ChildTask[]
+    private deferred?: Deferred
 
     constructor(f: TubeGeneratorFunction<S>) {
       this.f = f
@@ -125,6 +143,10 @@ export default function initialize<S extends object>(
         }
       }
 
+      if (!this.deferred) {
+        this.deferred = deferred()
+      }
+
       const g = this.f(getState, ...args)
       const child = new ChildTask(g)
 
@@ -132,6 +154,7 @@ export default function initialize<S extends object>(
       this.activeCount = this.activeCount + 1
       this.totalCount = this.totalCount + 1
 
+      // Trigger TaskProp updates
       update()
 
       const partialState = await child.do()
@@ -140,9 +163,14 @@ export default function initialize<S extends object>(
 
       update(partialState)
 
-      // TODO: Return a promise that resolves when all children are done
-      // (perhaps by keeping an oustanding child count)
-      return Promise.resolve()
+      const { promise } = this.deferred
+
+      if (this.activeCount === 0) {
+        this.deferred.resolve()
+        this.deferred = undefined
+      }
+
+      return promise
     }
 
     public cancelAll = (): void => {}

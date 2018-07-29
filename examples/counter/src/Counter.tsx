@@ -35,6 +35,10 @@ const increment = task(function*(getState) {
   return { count: getState().count + x }
 }).restartable()
 
+// const incrementSync = task(state => ({
+//   count: state.count + 1
+// })
+
 const mapStateToProps = (state: AppState) => ({
   count: state.count
 })
