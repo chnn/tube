@@ -2,7 +2,7 @@ import * as React from "react"
 import { TaskProp } from "../../../src"
 
 import * as api from "./api"
-import { connect, task } from "./store"
+import { AppState, connect, task } from "./store"
 
 interface Props {
   count: number
@@ -29,18 +29,22 @@ const Counter: React.SFC<Props> = props => {
   )
 }
 
-const increment = task(function*(state) {
+const increment = task(function*(getState) {
   const x = yield api.getCount() // Returns 1 after one second
 
-  return { count: state.count + x }
+  return { count: getState().count + x }
 }).restartable()
 
-const additionalProps = (state: any) => ({
-  count: state.count,
-  onIncrement: increment
+const mapStateToProps = (state: AppState) => ({
+  count: state.count
 })
 
+const mapTasksToProps = {
+  onIncrement: increment
+}
+
 export default connect(
-  additionalProps,
+  mapStateToProps,
+  mapTasksToProps,
   Counter
 )

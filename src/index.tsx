@@ -5,15 +5,10 @@ type Next<S> = Partial<S> | Promise<any>
 
 type TubeGenerator<S> = Iterator<Next<S>>
 
-type TubeGeneratorFunction<S> = (state: S, ...args: any[]) => TubeGenerator<S>
-
-interface UnboundAdditionalProps {
-  [k: string]: any
-}
-
-interface BoundAdditionalProps {
-  [k: string]: any
-}
+type TubeGeneratorFunction<S> = (
+  getState: (() => S),
+  ...args: any[]
+) => TubeGenerator<S>
 
 export interface TaskProp {
   (...args: any[]): Promise<void>
@@ -28,11 +23,21 @@ enum ConcurrencyType {
   Restartable = "RESTARTABLE"
 }
 
-type TaskCreator<S> = (f: TubeGeneratorFunction<S>) => any
+// TODO
+type Task = any
+
+type TaskCreator<S> = (f: TubeGeneratorFunction<S>) => Task
+
+type MapStateToProps<S> = ((state: S) => { [k: string]: any })
+
+interface MapTasksToProps {
+  [k: string]: Task
+}
 
 type Connect<S> = (
-  additionalProps: ((state: S) => UnboundAdditionalProps),
-  c: ComponentClass<any, any> | StatelessComponent<any>
+  mapStateToProps: MapStateToProps<S>,
+  mapTasksToProps: MapTasksToProps,
+  componentClass: ComponentClass<any, any> | StatelessComponent<any>
 ) => ((props: any) => JSX.Element)
 
 interface InitializeResult<S> {
@@ -48,6 +53,10 @@ export default function initialize<S extends object>(
   const tubes: Tube[] = []
 
   let state: S = initialState
+
+  function getState(): S {
+    return state
+  }
 
   function update(partialState: Partial<S> = {}) {
     // Lots of yucky type assertions here until
@@ -116,7 +125,7 @@ export default function initialize<S extends object>(
         }
       }
 
-      const g = this.f(state, ...args)
+      const g = this.f(getState, ...args)
       const child = new ChildTask(g)
 
       this.children.push(child)
@@ -165,20 +174,18 @@ export default function initialize<S extends object>(
     )
   }
 
-  function deriveTaskProps(
-    additionalProps: UnboundAdditionalProps
-  ): BoundAdditionalProps {
-    const boundAdditionalProps: BoundAdditionalProps = {}
+  interface TaskProps {
+    [k: string]: TaskProp
+  }
 
-    for (const [k, v] of Object.entries(additionalProps)) {
-      if (v instanceof Task) {
-        boundAdditionalProps[k] = taskProp(v)
-      } else {
-        boundAdditionalProps[k] = v
-      }
+  function deriveTaskProps(mapTasksToProps: MapTasksToProps): TaskProps {
+    const result: TaskProps = {}
+
+    for (const [k, v] of Object.entries(mapTasksToProps)) {
+      result[k] = taskProp(v)
     }
 
-    return boundAdditionalProps
+    return result
   }
 
   function task(f: TubeGeneratorFunction<S>): Task {
@@ -186,18 +193,19 @@ export default function initialize<S extends object>(
   }
 
   function connect(
-    additionalPropsFn: (state: S) => UnboundAdditionalProps,
+    mapStateToProps: MapStateToProps<S>,
+    mapTasksToProps: MapTasksToProps,
     Component: ComponentClass | StatelessComponent
   ) {
-    // TODO: Initialize `Emmiter`s here to handle multiple `Component` instances
-    // TODO: Should cache additional props as agressively as possible (perhaps
-    // store a “revision counter” for each task prop, a la glimmer
     return (props: any) => (
+      // TODO: Should cache itask props as agressively as possible (revision
+      // counter?)
       <Consumer>
         {state => (
           <Component
             {...props}
-            {...deriveTaskProps(additionalPropsFn(state))}
+            {...mapStateToProps(state)}
+            {...deriveTaskProps(mapTasksToProps)}
           />
         )}
       </Consumer>

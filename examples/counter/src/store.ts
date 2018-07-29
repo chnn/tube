@@ -1,6 +1,6 @@
 import initialize from "../../../src"
 
-interface AppState {
+export interface AppState {
   count: number
 }
 
