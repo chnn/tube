@@ -99,24 +99,32 @@ export default function initialize<S extends object>(
 
   class ChildTask {
     private g: TubeGenerator<S>
+    private canceled: boolean
 
     constructor(g: TubeGenerator<S>) {
       this.g = g
+      this.canceled = false
     }
 
     public async do(): Promise<Partial<S>> {
       let next: IteratorResult<Next<S>> = this.g.next()
 
-      while (!next.done) {
+      while (!next.done && !this.canceled) {
         const value = await next.value
 
         next = await this.g.next(value)
       }
 
+      if (this.canceled) {
+        return {}
+      }
+
       return next.value as Partial<S>
     }
 
-    public cancel() {}
+    public cancel() {
+      this.canceled = true
+    }
   }
 
   class Task {
@@ -150,7 +158,7 @@ export default function initialize<S extends object>(
       const g = this.f(getState, ...args)
       const child = new ChildTask(g)
 
-      this.children.push(child)
+      this.children.push(child) // TODO: Remove after complete
       this.activeCount = this.activeCount + 1
       this.totalCount = this.totalCount + 1
 
