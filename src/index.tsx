@@ -49,7 +49,7 @@ export default function initialize<S extends object>(
 
   let state: S = initialState
 
-  function updateState(partialState: Partial<S>) {
+  function update(partialState: Partial<S> = {}) {
     // Lots of yucky type assertions here until
     // https://github.com/Microsoft/TypeScript/pull/13288 lands
     //
@@ -78,8 +78,7 @@ export default function initialize<S extends object>(
       this.g = g
     }
 
-    public async start() {
-      // g.next until done while not cancelled, then call instance.setState
+    public async do(): Promise<Partial<S>> {
       let next: IteratorResult<Next<S>> = this.g.next()
 
       while (!next.done) {
@@ -88,18 +87,16 @@ export default function initialize<S extends object>(
         next = await this.g.next(value)
       }
 
-      // Last yielded value assumed to be a state update
-      const partialState = next.value as Partial<S>
-
-      updateState(partialState)
-
-      return this
+      return next.value as Partial<S>
     }
 
     public cancel() {}
   }
 
   class Task {
+    public activeCount: number
+    public totalCount: number
+
     private f: TubeGeneratorFunction<S>
     private concurrencyType: ConcurrencyType
     private children: ChildTask[]
@@ -108,9 +105,11 @@ export default function initialize<S extends object>(
       this.f = f
       this.concurrencyType = ConcurrencyType.Racey
       this.children = []
+      this.activeCount = 0
+      this.totalCount = 0
     }
 
-    public do = (...args: any[]): Promise<void> => {
+    public do = async (...args: any[]): Promise<void> => {
       if (this.concurrencyType === ConcurrencyType.Restartable) {
         for (const child of this.children) {
           child.cancel()
@@ -121,8 +120,16 @@ export default function initialize<S extends object>(
       const child = new ChildTask(g)
 
       this.children.push(child)
+      this.activeCount = this.activeCount + 1
+      this.totalCount = this.totalCount + 1
 
-      child.start()
+      update()
+
+      const partialState = await child.do()
+
+      this.activeCount = this.activeCount - 1
+
+      update(partialState)
 
       // TODO: Return a promise that resolves when all children are done
       // (perhaps by keeping an oustanding child count)
@@ -150,9 +157,9 @@ export default function initialize<S extends object>(
         return t.do(...arguments)
       },
       {
-        isRunning: false,
-        isIdle: true,
-        called: 0,
+        isRunning: t.activeCount > 0,
+        isIdle: t.activeCount === 0,
+        called: t.totalCount,
         cancelAll: t.cancelAll
       }
     )

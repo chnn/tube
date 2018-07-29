@@ -30,7 +30,7 @@ const Counter: React.SFC<Props> = props => {
 }
 
 const increment = task(function*(state) {
-  const x = yield api.getCount() // Gets random integer
+  const x = yield api.getCount() // Returns 1 after one second
 
   return { count: state.count + x }
 }).restartable()
