@@ -146,9 +146,7 @@ export default function initialize<S extends object>(
 
     public do = async (...args: any[]): Promise<void> => {
       if (this.concurrencyType === ConcurrencyType.Restartable) {
-        for (const child of this.children) {
-          child.cancel()
-        }
+        this.cancelAll()
       }
 
       if (!this.deferred) {
@@ -181,7 +179,11 @@ export default function initialize<S extends object>(
       return promise
     }
 
-    public cancelAll = (): void => {}
+    public cancelAll = (): void => {
+      for (const child of this.children) {
+        child.cancel()
+      }
+    }
 
     public racey(): Task {
       this.concurrencyType = ConcurrencyType.Racey
