@@ -19,7 +19,7 @@ export interface TaskProp {
 }
 
 enum ConcurrencyType {
-  Racey = "RACEY",
+  Default = "DEFAULT",
   Restartable = "RESTARTABLE"
 }
 
@@ -138,7 +138,7 @@ export default function initialize<S extends object>(
 
     constructor(f: TubeGeneratorFunction<S>) {
       this.f = f
-      this.concurrencyType = ConcurrencyType.Racey
+      this.concurrencyType = ConcurrencyType.Default
       this.children = []
       this.activeCount = 0
       this.totalCount = 0
@@ -183,12 +183,6 @@ export default function initialize<S extends object>(
       for (const child of this.children) {
         child.cancel()
       }
-    }
-
-    public racey(): Task {
-      this.concurrencyType = ConcurrencyType.Racey
-
-      return this
     }
 
     public restartable(): Task {
