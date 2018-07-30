@@ -20,7 +20,8 @@ export interface TaskProp {
 
 enum ConcurrencyType {
   Default = "DEFAULT",
-  Restartable = "RESTARTABLE"
+  Restartable = "RESTARTABLE",
+  Droppable = "DROPPABLE"
 }
 
 // TODO
@@ -147,6 +148,11 @@ export default function initialize<S extends object>(
     public do = async (...args: any[]): Promise<void> => {
       if (this.concurrencyType === ConcurrencyType.Restartable) {
         this.cancelAll()
+      } else if (
+        this.concurrencyType === ConcurrencyType.Droppable &&
+        this.activeCount > 0
+      ) {
+        return this.deferred.promise
       }
 
       if (!this.deferred) {

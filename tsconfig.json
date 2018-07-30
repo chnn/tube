@@ -13,7 +13,7 @@
     "removeComments": false,
     "strict": true,
     "noImplicitAny": true,
-    "strictNullChecks": true,
+    "strictNullChecks": false,
     "strictFunctionTypes": true,
     "strictPropertyInitialization": true,
     "downlevelIteration": true,
