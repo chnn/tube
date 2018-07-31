@@ -9,7 +9,8 @@
   "jsRules": {},
   "rules": {
     "interface-name": false,
-    "prettier": [true, "."]
+    "prettier": [true, "."],
+    "no-unused-variable": [true, {"ignore-pattern": "^_"}]
   },
   "rulesDirectory": []
 }
