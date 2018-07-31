@@ -1,7 +1,12 @@
 import * as React from "react"
 import { ComponentClass, PureComponent, StatelessComponent } from "react"
 
-import createTaskFactory, { Task, TaskFactory } from "./tasks"
+import createTaskBuilderFactory, {
+  Task,
+  TaskBuilder,
+  TaskBuilderFactory,
+  TubeGeneratorFunction
+} from "./tasks"
 import { deferred, Deferred } from "./utils"
 
 export interface TaskProp {
@@ -18,20 +23,24 @@ interface TaskProps {
 
 type MapStateToProps<S> = ((state: S) => { [k: string]: any })
 
+interface MapTaskBuildersToProps<S> {
+  [k: string]: TaskBuilder<S>
+}
+
 interface MapTasksToProps<S> {
   [k: string]: Task<S>
 }
 
 type Connect<S> = (
   mapStateToProps: MapStateToProps<S>,
-  mapTasksToProps: MapTasksToProps<S>,
+  mapTasksToProps: MapTaskBuildersToProps<S>,
   componentClass: ComponentClass<any, any> | StatelessComponent<any>
-) => ((props: any) => JSX.Element)
+) => React.ComponentClass
 
 interface InitializeResult<S> {
   Tube: ComponentClass
   connect: Connect<S>
-  task: TaskFactory<S>
+  task: TaskBuilderFactory<S>
 }
 
 export default function initialize<S extends object>(
@@ -66,34 +75,61 @@ export default function initialize<S extends object>(
     }
   }
 
-  const task = createTaskFactory<S>(getState)
+  const taskBuilderFactory = createTaskBuilderFactory<S>(getState)
 
   function connect(
     mapStateToProps: MapStateToProps<S>,
-    mapTasksToProps: MapTasksToProps<S>,
+    mapTasksToProps: MapTaskBuildersToProps<S>,
     Component: ComponentClass | StatelessComponent
   ) {
-    for (const t of Object.values(mapTasksToProps)) {
-      t.subscribe(updateState, updateState)
-    }
+    return class TubeConsumer extends React.Component {
+      private tasks: {
+        [k: string]: Task<S>
+      }
+      private unsubscribes: Array<() => void>
 
-    // TODO: `Task`s should not be shared across component instances
-    return (props: any) => (
-      // TODO: Should cache itask props as agressively as possible (revision
-      // counter?)
-      <Consumer>
-        {state => (
-          <Component
-            {...props}
-            {...mapStateToProps(state)}
-            {...deriveTaskProps(mapTasksToProps)}
-          />
-        )}
-      </Consumer>
-    )
+      constructor(props: any) {
+        super(props)
+
+        this.tasks = {}
+        this.unsubscribes = []
+
+        for (const [key, builder] of Object.entries(mapTasksToProps)) {
+          const task = builder.build()
+
+          this.tasks[key] = task
+          this.unsubscribes.push(task.subscribe(updateState, updateState))
+        }
+      }
+
+      public componentWillUnmount() {
+        for (const unsubscribe of this.unsubscribes) {
+          unsubscribe()
+        }
+      }
+
+      public render() {
+        // TODO: Should cache task props as agressively as possible
+        return (
+          <Consumer>
+            {state => (
+              <Component
+                {...this.props}
+                {...mapStateToProps(state)}
+                {...deriveTaskProps(this.tasks)}
+              />
+            )}
+          </Consumer>
+        )
+      }
+    }
   }
 
-  return { Tube, task, connect }
+  return {
+    Tube,
+    connect,
+    task: taskBuilderFactory
+  }
 }
 
 // TODO: Remove unnecessary generic passing
@@ -111,7 +147,6 @@ function deriveTaskProp<S>(t: Task<S>): TaskProp {
   )
 }
 
-// TODO: Remove unnecessary generic passing
 function deriveTaskProps<S>(mttp: MapTasksToProps<S>) {
   const result: TaskProps = {}
 

@@ -11,7 +11,7 @@ interface TubeIterator<S> {
   throw?(e?: any): IteratorResult<any> // TODO
 }
 
-type TubeGeneratorFunction<S> = (
+export type TubeGeneratorFunction<S> = (
   getState: (() => S),
   ...args: any[]
 ) => TubeIterator<S>
@@ -33,14 +33,21 @@ export interface Task<S> {
     onTasksUpdate: () => void
   ) => Unsubscribe
   cancelAll: () => void
-  restartable: () => Task<S>
 }
 
-export type TaskFactory<S> = (f: TubeGeneratorFunction<S>) => Task<S>
+export interface TaskBuilder<S> {
+  restartable: () => TaskBuilder<S>
+  droppable: () => TaskBuilder<S>
+  build: () => Task<S>
+}
 
-export default function createTaskFactory<S>(
+export type TaskBuilderFactory<S> = (
+  f: TubeGeneratorFunction<S>
+) => TaskBuilder<S>
+
+export default function createTaskBuilderFactory<S>(
   getState: () => S
-): TaskFactory<S> {
+): TaskBuilderFactory<S> {
   class ChildTask {
     private g: TubeIterator<S>
     private canceled: boolean
@@ -71,7 +78,7 @@ export default function createTaskFactory<S>(
     }
   }
 
-  class Task implements Task {
+  class TaskImpl implements Task<S> {
     public activeCount: number
     public totalCount: number
 
@@ -84,9 +91,9 @@ export default function createTaskFactory<S>(
       [subscriptionId: string]: [(s: Partial<S>) => void, () => void]
     }
 
-    constructor(f: TubeGeneratorFunction<S>) {
+    constructor(f: TubeGeneratorFunction<S>, concurrencyType: ConcurrencyType) {
       this.f = f
-      this.concurrencyType = ConcurrencyType.Default
+      this.concurrencyType = concurrencyType
       this.children = []
       this.activeCount = 0
       this.totalCount = 0
@@ -154,12 +161,6 @@ export default function createTaskFactory<S>(
       }
     }
 
-    public restartable(): Task {
-      this.concurrencyType = ConcurrencyType.Restartable
-
-      return this
-    }
-
     private publishTasksUpdate = (): void => {
       for (const [_, onTasksUpdate] of Object.values(this.subscribers)) {
         onTasksUpdate()
@@ -173,8 +174,33 @@ export default function createTaskFactory<S>(
     }
   }
 
+  class TaskBuilderImpl implements TaskBuilder<S> {
+    private f: TubeGeneratorFunction<S>
+    private concurrencyType = ConcurrencyType.Default
+
+    constructor(f: TubeGeneratorFunction<S>) {
+      this.f = f
+    }
+
+    public restartable(): TaskBuilder<S> {
+      this.concurrencyType = ConcurrencyType.Restartable
+
+      return this
+    }
+
+    public droppable(): TaskBuilder<S> {
+      this.concurrencyType = ConcurrencyType.Droppable
+
+      return this
+    }
+
+    public build(): Task<S> {
+      return new TaskImpl(this.f, this.concurrencyType)
+    }
+  }
+
   function task(f: TubeGeneratorFunction<S>) {
-    return new Task(f)
+    return new TaskBuilderImpl(f)
   }
 
   return task
