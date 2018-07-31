@@ -19,7 +19,7 @@ Design goals:
 
 ### Quickstart
 
-Define your application state and wrap your render tree with a `Tube` provider:
+Define your application state and wrap your render tree with a `TubeProvider`:
 
 ```tsx
 // src/index.tsx
@@ -39,13 +39,13 @@ interface AppState {
 const initialState: AppState = { count: 0 }
 
 // Initalize your application store
-export const { Tube, task, connect } = initialize<AppState>(initialState)
+export const { TubeProvider, task, connect } = initialize<AppState>(initialState)
 
 // Render your application tree with the `Tube` provider
 render(
-  <Tube>
+  <TubeProvider>
     <ConnectedCounter />
-  </Tube>,
+  </TubeProvider>,
   document.getElementById("root")
 )
 ```

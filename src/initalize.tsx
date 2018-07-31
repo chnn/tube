@@ -38,7 +38,7 @@ type Connect<S> = (
 ) => React.ComponentClass
 
 interface InitializeResult<S> {
-  Tube: ComponentClass
+  TubeProvider: ComponentClass
   connect: Connect<S>
   task: TaskBuilderFactory<S>
 }
@@ -47,7 +47,7 @@ export default function initialize<S extends object>(
   initialState: S
 ): InitializeResult<S> {
   const { Provider, Consumer } = React.createContext<S>(initialState)
-  const tubes: Tube[] = []
+  const tubes: TubeProvider[] = []
 
   let state: S = initialState
 
@@ -63,7 +63,7 @@ export default function initialize<S extends object>(
     tubes.forEach(t => t.forceUpdate())
   }
 
-  class Tube extends PureComponent<{}, {}> {
+  class TubeProvider extends PureComponent<{}, {}> {
     public constructor(props: {}) {
       super(props)
 
@@ -126,7 +126,7 @@ export default function initialize<S extends object>(
   }
 
   return {
-    Tube,
+    TubeProvider,
     connect,
     task: taskBuilderFactory
   }

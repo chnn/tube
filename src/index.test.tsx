@@ -15,7 +15,7 @@ test("basic smoke test", () => {
     b: "foo"
   }
 
-  const { Tube, connect } = initialize<State>(initalState)
+  const { TubeProvider, connect } = initialize<State>(initalState)
 
   const MyComponent = (props: any) => (
     <div className="my-component">
@@ -36,11 +36,13 @@ test("basic smoke test", () => {
   )
 
   const wrapper = mount(
-    <Tube>
+    <TubeProvider>
       <ConnectedMyComponent />
-    </Tube>
+    </TubeProvider>
   )
 
   expect(wrapper.find(".x").text()).toEqual("1")
   expect(wrapper.find(".y").text()).toEqual("foo")
 })
+
+// test('connected components should not shared task instances', () => {})
