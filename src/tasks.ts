@@ -24,14 +24,13 @@ enum ConcurrencyType {
 
 type Unsubscribe = () => void
 
+type Subscriber<S> = (s: Partial<S> | null, taskStateChanged: boolean) => void
+
 export interface Task<S> {
   activeCount: number
   totalCount: number
   do: (...args: any[]) => Promise<void>
-  subscribe: (
-    onStateUpdate: (s: Partial<S>) => void,
-    onTasksUpdate: () => void
-  ) => Unsubscribe
+  subscribe: (s: Subscriber<S>) => Unsubscribe
   cancelAll: () => void
 }
 
@@ -88,7 +87,7 @@ export default function createTaskBuilderFactory<S>(
     private deferred?: Deferred
     private currentSubscriptionId: number
     private subscribers: {
-      [subscriptionId: string]: [(s: Partial<S>) => void, () => void]
+      [subscriptionId: string]: Subscriber<S>
     }
 
     constructor(f: TubeGeneratorFunction<S>, concurrencyType: ConcurrencyType) {
@@ -122,13 +121,13 @@ export default function createTaskBuilderFactory<S>(
       this.activeCount = this.activeCount + 1
       this.totalCount = this.totalCount + 1
 
-      this.publishTasksUpdate()
+      this.publish(null, true)
 
       const partialState = await child.do()
 
       this.activeCount = this.activeCount - 1
 
-      this.publishStateUpdates(partialState)
+      this.publish(partialState, true)
 
       const { promise } = this.deferred
 
@@ -140,16 +139,13 @@ export default function createTaskBuilderFactory<S>(
       return promise
     }
 
-    public subscribe(
-      onStateUpdate: (s: Partial<S>) => void,
-      onTasksUpdate: () => void
-    ) {
+    public subscribe(subscriber: Subscriber<S>) {
       const id = String(this.currentSubscriptionId)
       const unsubscribe = () => {
         delete this.subscribers[id]
       }
 
-      this.subscribers[id] = [onStateUpdate, onTasksUpdate]
+      this.subscribers[id] = subscriber
       this.currentSubscriptionId += 1
 
       return unsubscribe
@@ -161,15 +157,12 @@ export default function createTaskBuilderFactory<S>(
       }
     }
 
-    private publishTasksUpdate = (): void => {
-      for (const [_, onTasksUpdate] of Object.values(this.subscribers)) {
-        onTasksUpdate()
-      }
-    }
-
-    private publishStateUpdates = (stateUpdate: Partial<S> = {}): void => {
-      for (const [onStateUpdate] of Object.values(this.subscribers)) {
-        onStateUpdate(stateUpdate)
+    private publish = (
+      s: Partial<S> | null,
+      taskStateChanged: boolean
+    ): void => {
+      for (const subscriber of Object.values(this.subscribers)) {
+        subscriber(s, taskStateChanged)
       }
     }
   }

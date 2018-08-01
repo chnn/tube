@@ -6,6 +6,4 @@ export interface AppState {
 
 const initialState: AppState = { count: 0 }
 
-export const { TubeProvider, task, connect } = initialize<AppState>(
-  initialState
-)
+export const { task, connect } = initialize<AppState>(initialState)

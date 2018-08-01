@@ -19,38 +19,23 @@ Design goals:
 
 ### Quickstart
 
-Define your application state and wrap your render tree with a `TubeProvider`:
+Define your application state and initialize Tube's `task` and `connect` utilities:
 
 ```tsx
-// src/index.tsx
+// src/store.tsx
 
-import * as React from "react"
-import { render } from "react-dom"
 import initalize from "tube"
 
-import ConnectedCounter from "./counter"
-
-// Define the shape of your app state
 interface AppState {
   count: number
 }
 
-// Define the default application state
 const initialState: AppState = { count: 0 }
 
-// Initalize your application store
-export const { TubeProvider, task, connect } = initialize<AppState>(initialState)
-
-// Render your application tree with the `Tube` provider
-render(
-  <TubeProvider>
-    <ConnectedCounter />
-  </TubeProvider>,
-  document.getElementById("root")
-)
+export const { task, connect } = initialize<AppState>(initialState)
 ```
 
-Then connect components to your application state via the initialized `task` and `connect` utilities.
+Then connect components to your application state using `task` and `connect`:
 
 ```tsx
 // src/counter.tsx
@@ -59,7 +44,7 @@ import * as React from 'react'
 import {TaskProp} from 'tube'
 
 import * as api from './api'
-import {task, connect} from './'
+import {task, connect} from './store'
 
 interface CounterProps {
   count: number
