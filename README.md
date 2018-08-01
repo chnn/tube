@@ -43,23 +43,25 @@ Then connect components to your application state using `task` and `connect`:
 import * as React from 'react'
 import {TaskProp} from 'tube'
 
-import * as api from './api'
-import {task, connect} from './store'
+import * as api from "./api"
+import { AppState, connect, task } from "./store"
 
-interface CounterProps {
+interface Props {
   count: number
   onIncrement: TaskProp
 }
 
-const Counter: React.SFC<CounterProps> = props => (
+const Counter: React.SFC<Props> = ({ count, onIncrement }) => (
   <div className="counter">
-    <div>Value: {props.onIncrement.isLoading ? "..." : props.count}</div>
-    <button onClick={props.onIncrement}>+ Increment</button>
+    <div className="value">
+      Value: {onIncrement.isRunning ? <div className="loader" /> : count}
+    </div>
+    <button onClick={onIncrement}>+ Add 1</button>
   </div>
 )
 
 const increment = task(function*(getState) {
-  const x = yield api.getCount() // Resolves after 1 second
+  const x = yield api.getCount(1) // Returns 1 after one second
 
   return { count: getState().count + x }
 }).restartable()

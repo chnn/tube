@@ -33,6 +33,15 @@ body, #root, .app {
   flex-direction: column;
 }
 
+.counter .value {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.counter .value .loader {
+  margin-left: 10px;
+}
+
 @keyframes loading-dots {
   0% {
     content: " "
@@ -60,20 +69,6 @@ body, #root, .app {
   content: "..."
 }
 
-
-td {
-  margin: 0;
-  padding: 4px;
-}
-
-tr td:first-child {
-  padding-left: 0;
-}
-
-tr td:last-child {
-  text-align: right;
-  padding-right: 0;
-}
 
 @keyframes button-fade {
   from {

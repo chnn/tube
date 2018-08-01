@@ -9,31 +9,14 @@ interface Props {
   onIncrement: TaskProp
 }
 
-const Counter: React.SFC<Props> = props => {
-  return (
-    <div className="counter">
-      <table>
-        <tbody>
-          <tr>
-            <td>Value: </td>
-            <td>
-              {props.onIncrement.isRunning ? (
-                <div className="loader" />
-              ) : (
-                props.count
-              )}
-            </td>
-          </tr>
-          <tr>
-            <td>Called: </td>
-            <td>{props.onIncrement.called}</td>
-          </tr>
-        </tbody>
-      </table>
-      <button onClick={props.onIncrement}>+ Add 1</button>
+const Counter: React.SFC<Props> = ({ count, onIncrement }) => (
+  <div className="counter">
+    <div className="value">
+      Value: {onIncrement.isRunning ? <div className="loader" /> : count}
     </div>
-  )
-}
+    <button onClick={onIncrement}>+ Add 1</button>
+  </div>
+)
 
 const increment = task(function*(getState) {
   const x = yield api.getCount(1) // Returns 1 after one second
