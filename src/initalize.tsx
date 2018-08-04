@@ -35,6 +35,15 @@ interface InitializeResult<S> {
   task: TaskBuilderFactory<S>
 }
 
+interface StateProps {
+  [k: string]: any
+}
+
+interface TubeConsumerState {
+  stateProps: StateProps
+  taskProps: TaskProps
+}
+
 export default function initialize<S extends object>(
   initialState: S
 ): InitializeResult<S> {
@@ -44,7 +53,7 @@ export default function initialize<S extends object>(
     return state
   }
 
-  function updateState(partialState: Partial<S> = {}) {
+  function setState(partialState: Partial<S> = {}) {
     // Lots of yucky type assertions here until
     // https://github.com/Microsoft/TypeScript/pull/13288 lands
     state = { ...(state as object), ...(partialState as object) } as S
@@ -57,13 +66,7 @@ export default function initialize<S extends object>(
     mapTasksToProps: MapTaskBuildersToProps<S>,
     Component: React.ComponentClass | React.StatelessComponent
   ) {
-    interface TubeConsumerState {
-      stateProps: { [k: string]: any }
-      taskProps: TaskProps
-    }
-
-    // TODO: Hoist to module level, have connect specialize
-    return class TubeConsumer extends React.Component<{}, TubeConsumerState> {
+    return class extends React.PureComponent<{}, TubeConsumerState> {
       private tasks: { [k: string]: Task<S> }
       private unsubscribes: Array<() => void>
       private taskPropCache: {
@@ -89,7 +92,7 @@ export default function initialize<S extends object>(
         }
 
         this.state = {
-          stateProps: mapStateToProps(state),
+          stateProps: mapStateToProps(getState()),
           taskProps: this.deriveTaskProps()
         }
       }
@@ -117,8 +120,8 @@ export default function initialize<S extends object>(
         const nextState: any = {}
 
         if (newState) {
-          updateState(newState)
-          nextState.stateProps = mapStateToProps(state)
+          setState(newState)
+          nextState.stateProps = mapStateToProps(getState())
         }
 
         if (taskStateChanged) {
