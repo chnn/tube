@@ -2,15 +2,13 @@
   "compilerOptions": {
     "target": "es5",
     "module": "commonjs",
-    "lib": ["es2017", "dom"],
+    "lib": ["es2017", "es2016", "es2015", "dom"],
     "allowJs": false,
     "jsx": "react",
     "declaration": true,
     "sourceMap": true,
-    "outFile": "index.js",
     "outDir": "dist",
-    "rootDir": "src",
-    "removeComments": false,
+    "removeComments": true,
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -23,5 +21,13 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node"
-  }
+  },
+  "include": ["lib"],
+  "exclude": [
+    "**/*.test.*",
+    "lib/setupTests.ts",
+    "examples",
+    "node_modules",
+    "dist"
+  ]
 }

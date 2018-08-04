@@ -1,0 +1,6 @@
+.cache
+examples
+lib
+jest.config.js
+tslint.json
+tsconfig.json

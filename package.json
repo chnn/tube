@@ -1,12 +1,13 @@
 {
-  "name": "tube",
+  "name": "@chnn/tube",
   "version": "0.0.1",
   "description": "Easy state management for React apps",
-  "main": "index.js",
+  "main": "dist/index.js",
   "repository": "https://github.com/chnn/tube",
   "author": "Christopher Henn <chris@chrishenn.net>",
   "license": "MIT",
   "scripts": {
+    "build": "rm -rf dist/* && tsc",
     "tslint": "tslint -c tslint.json 'src/**/*.{ts,tsx}'",
     "tslint:fix": "tslint --fix -c tslint.json 'src/**/*.{ts,tsx}'",
     "test": "jest"
