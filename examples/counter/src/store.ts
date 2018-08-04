@@ -1,4 +1,4 @@
-import initialize from "../../../src"
+import initialize from "@chnn/tube"
 
 export interface AppState {
   count: number

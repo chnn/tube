@@ -24,7 +24,7 @@ Define your application state and initialize Tube's `task` and `connect` utiliti
 ```tsx
 // src/store.tsx
 
-import initalize from "tube"
+import initalize from "@chnn/tube"
 
 interface AppState {
   count: number
@@ -41,7 +41,7 @@ Then connect components to your application state using `task` and `connect`:
 // src/counter.tsx
 
 import * as React from 'react'
-import {TaskProp} from 'tube'
+import {TaskProp} from '@chnn/tube'
 
 import * as api from "./api"
 import { AppState, connect, task } from "./store"

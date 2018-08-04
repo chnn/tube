@@ -1,5 +1,5 @@
+import { TaskProp } from "@chnn/tube"
 import * as React from "react"
-import { TaskProp } from "../../../src"
 
 import * as api from "./api"
 import { AppState, connect, task } from "./store"
