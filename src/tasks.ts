@@ -56,7 +56,7 @@ export default function createTaskBuilderFactory<S>(
       this.canceled = false
     }
 
-    public async do(): Promise<Partial<S>> {
+    public async do(): Promise<Partial<S> | null> {
       let next: TubeIteratorResult<S> = this.g.next()
 
       while (!next.done && !this.canceled) {
@@ -66,7 +66,7 @@ export default function createTaskBuilderFactory<S>(
       }
 
       if (this.canceled) {
-        return {}
+        return null
       }
 
       return next.value as Partial<S>
