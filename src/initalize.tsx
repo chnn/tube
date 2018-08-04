@@ -125,10 +125,19 @@ export default function initialize<S extends object>(
         }
 
         if (taskStateChanged) {
-          nextState.taskProps = this.deriveTaskProps()
+          const newTaskProps = this.deriveTaskProps()
+
+          if (Object.keys(newTaskProps).length > 0) {
+            nextState.taskProps = {
+              ...this.state.taskProps,
+              ...newTaskProps
+            }
+          }
         }
 
-        this.setState(nextState)
+        if (Object.keys(nextState).length > 0) {
+          this.setState(nextState)
+        }
       }
 
       private deriveTaskProps = (): TaskProps => {
@@ -142,25 +151,23 @@ export default function initialize<S extends object>(
           const cachedTaskProp = this.taskPropCache[taskKey]
 
           if (!cachedTaskProp || cachedTaskProp.hash !== hash) {
-            this.taskPropCache[taskKey] = {
-              hash,
-              taskProp: Object.assign(
-                function() {
-                  return task.do(...arguments)
-                },
-                {
-                  isRunning,
-                  isIdle,
-                  called,
-                  cancelAll() {
-                    return task.cancelAll()
-                  }
+            const taskProp = Object.assign(
+              function() {
+                return task.do(...arguments)
+              },
+              {
+                isRunning,
+                isIdle,
+                called,
+                cancelAll() {
+                  return task.cancelAll()
                 }
-              )
-            }
-          }
+              }
+            )
 
-          props[taskKey] = this.taskPropCache[taskKey].taskProp
+            this.taskPropCache[taskKey] = { hash, taskProp }
+            props[taskKey] = taskProp
+          }
         }
 
         return props
