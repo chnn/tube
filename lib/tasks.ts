@@ -24,29 +24,34 @@ enum ConcurrencyType {
 
 type Unsubscribe = () => void
 
-type Subscriber<S> = (s: Partial<S> | null, taskStateChanged: boolean) => void
+type Subscriber = (stateChanged: boolean, taskStateChanged: boolean) => void
+
+export interface TaskProp {
+  (...args: any[]): Promise<void>
+  isRunning: boolean
+  isIdle: boolean
+  called: number
+  cancelAll: () => void
+}
 
 export interface Task<S> {
   activeCount: number
   totalCount: number
-  do: (...args: any[]) => Promise<void>
-  subscribe: (s: Subscriber<S>) => Unsubscribe
+  perform: (...args: any[]) => Promise<void>
+  subscribe: (s: Subscriber) => Unsubscribe
   cancelAll: () => void
+  restartable: () => Task<S>
+  droppable: () => Task<S>
+  getTaskProp: () => TaskProp
 }
 
-export interface TaskBuilder<S> {
-  restartable: () => TaskBuilder<S>
-  droppable: () => TaskBuilder<S>
-  build: () => Task<S>
-}
+export type TaskFactory<S> = (f: TubeGeneratorFunction<S>) => Task<S>
 
-export type TaskBuilderFactory<S> = (
-  f: TubeGeneratorFunction<S>
-) => TaskBuilder<S>
-
-export default function createTaskBuilderFactory<S>(
-  getState: () => S
-): TaskBuilderFactory<S> {
+// TODO: Tasks should set state and then publish updates
+export default function createTaskFactory<S>(
+  getState: () => S,
+  setState: (partialState: Partial<S> | null) => void
+): TaskFactory<S> {
   class ChildTask {
     private g: TubeIterator<S>
     private canceled: boolean
@@ -56,7 +61,7 @@ export default function createTaskBuilderFactory<S>(
       this.canceled = false
     }
 
-    public async do(): Promise<Partial<S> | null> {
+    public async perform(): Promise<Partial<S> | null> {
       let next: TubeIteratorResult<S> = this.g.next()
 
       while (!next.done && !this.canceled) {
@@ -86,13 +91,19 @@ export default function createTaskBuilderFactory<S>(
     private children: ChildTask[]
     private deferred?: Deferred
     private currentSubscriptionId: number
+
     private subscribers: {
-      [subscriptionId: string]: Subscriber<S>
+      [subscriptionId: string]: Subscriber
     }
 
-    constructor(f: TubeGeneratorFunction<S>, concurrencyType: ConcurrencyType) {
+    private lastTaskProp?: {
+      hash: string
+      taskProp: TaskProp
+    }
+
+    constructor(f: TubeGeneratorFunction<S>) {
       this.f = f
-      this.concurrencyType = concurrencyType
+      this.concurrencyType = ConcurrencyType.Default
       this.children = []
       this.activeCount = 0
       this.totalCount = 0
@@ -100,7 +111,7 @@ export default function createTaskBuilderFactory<S>(
       this.subscribers = {}
     }
 
-    public do = async (...args: any[]): Promise<void> => {
+    public perform = async (...args: any[]): Promise<void> => {
       if (this.concurrencyType === ConcurrencyType.Restartable) {
         this.cancelAll()
       } else if (
@@ -121,13 +132,14 @@ export default function createTaskBuilderFactory<S>(
       this.activeCount = this.activeCount + 1
       this.totalCount = this.totalCount + 1
 
-      this.publish(null, true)
+      this.publish(false, true)
 
-      const partialState = await child.do()
+      const partialState = await child.perform()
 
+      setState(partialState)
       this.activeCount = this.activeCount - 1
 
-      this.publish(partialState, true)
+      this.publish(true, true)
 
       const { promise } = this.deferred
 
@@ -139,7 +151,7 @@ export default function createTaskBuilderFactory<S>(
       return promise
     }
 
-    public subscribe(subscriber: Subscriber<S>) {
+    public subscribe(subscriber: Subscriber) {
       const id = String(this.currentSubscriptionId)
       const unsubscribe = () => {
         delete this.subscribers[id]
@@ -157,43 +169,58 @@ export default function createTaskBuilderFactory<S>(
       }
     }
 
-    private publish = (
-      s: Partial<S> | null,
-      taskStateChanged: boolean
-    ): void => {
-      for (const subscriber of Object.values(this.subscribers)) {
-        subscriber(s, taskStateChanged)
-      }
-    }
-  }
-
-  class TaskBuilderImpl implements TaskBuilder<S> {
-    private f: TubeGeneratorFunction<S>
-    private concurrencyType = ConcurrencyType.Default
-
-    constructor(f: TubeGeneratorFunction<S>) {
-      this.f = f
-    }
-
-    public restartable(): TaskBuilder<S> {
+    public restartable(): Task<S> {
       this.concurrencyType = ConcurrencyType.Restartable
 
       return this
     }
 
-    public droppable(): TaskBuilder<S> {
+    public droppable(): Task<S> {
       this.concurrencyType = ConcurrencyType.Droppable
 
       return this
     }
 
-    public build(): Task<S> {
-      return new TaskImpl(this.f, this.concurrencyType)
+    public getTaskProp = (): TaskProp => {
+      const isRunning = this.activeCount > 0
+      const hash = `${this.totalCount}-${isRunning}`
+
+      if (this.lastTaskProp && this.lastTaskProp.hash === hash) {
+        return this.lastTaskProp.taskProp
+      }
+
+      const task = this
+      const taskProp = Object.assign(
+        function() {
+          return task.perform(...arguments)
+        },
+        {
+          isRunning,
+          isIdle: !isRunning,
+          called: this.totalCount,
+          cancelAll() {
+            return task.cancelAll()
+          }
+        }
+      )
+
+      this.lastTaskProp = { hash, taskProp }
+
+      return taskProp
+    }
+
+    private publish = (
+      stateChanged: boolean,
+      taskStateChanged: boolean
+    ): void => {
+      for (const subscriber of Object.values(this.subscribers)) {
+        subscriber(stateChanged, taskStateChanged)
+      }
     }
   }
 
   function task(f: TubeGeneratorFunction<S>) {
-    return new TaskBuilderImpl(f)
+    return new TaskImpl(f)
   }
 
   return task
