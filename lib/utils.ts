@@ -14,3 +14,11 @@ export function deferred(): Deferred {
 
   return d as Deferred
 }
+
+let id = '0'
+
+export function generateId() {
+  id = String(+id + 1)
+
+  return id
+}

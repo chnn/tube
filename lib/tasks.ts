@@ -1,4 +1,23 @@
+import { Store } from "./store"
 import { deferred, Deferred } from "./utils"
+
+export interface Task<S> {
+  restartable: () => Task<S>
+  droppable: () => Task<S>
+  getTaskProp: () => TaskProp
+}
+
+export interface TaskProp {
+  (...args: any[]): Promise<void>
+  isRunning: boolean
+  isIdle: boolean
+  called: number
+  cancelAll: () => void
+}
+
+export interface TaskProps {
+  [k: string]: TaskProp
+}
 
 interface TubeIteratorResult<S> {
   done: boolean
@@ -26,62 +45,39 @@ type Unsubscribe = () => void
 
 type Subscriber = (stateChanged: boolean, taskStateChanged: boolean) => void
 
-export interface TaskProp {
-  (...args: any[]): Promise<void>
-  isRunning: boolean
-  isIdle: boolean
-  called: number
-  cancelAll: () => void
-}
-
-export interface Task<S> {
-  restartable: () => Task<S>
-  droppable: () => Task<S>
-  subscribe: (s: Subscriber) => Unsubscribe
-  getTaskProp: () => TaskProp
-}
-
 export type TaskFactory<S> = (f: TubeGeneratorFunction<S>) => Task<S>
 
-export default function createTaskFactory<S>(
-  getState: () => S,
-  setState: (partialState: Partial<S> | null) => void
-): TaskFactory<S> {
+export default function createTaskFactory<S>(store: Store<S>): TaskFactory<S> {
   class ChildTask {
     private g: TubeIterator<S>
-    private onStateUpdate: () => void
     private canceled: boolean
 
-    constructor(g: TubeIterator<S>, onStateUpdate: () => void) {
+    constructor(g: TubeIterator<S>) {
       this.g = g
       this.canceled = false
-      this.onStateUpdate = onStateUpdate
     }
 
     public async perform(): Promise<void> {
       let next: TubeIteratorResult<S> = this.g.next()
+      let shouldAdvance = true
 
-      while (!next.done && !this.canceled) {
-        const value = next.value
-
-        if (value instanceof Promise) {
-          await value
-        } else {
-          setState(value)
-          this.onStateUpdate()
+      while (shouldAdvance) {
+        if (this.canceled) {
+          return
         }
 
-        next = this.g.next(value)
+        shouldAdvance = !next.done
+
+        const isPromise = next.value instanceof Promise
+        const result = await next.value
+
+        if (!isPromise && !!result) {
+          store.setState(result)
+          store.publish("STATE_UPDATED")
+        }
+
+        next = this.g.next(result)
       }
-
-      if (this.canceled) {
-        return
-      }
-
-      // Final value assumed to be a state update
-      setState(next.value as Partial<S>)
-
-      return
     }
 
     public cancel() {
@@ -96,11 +92,6 @@ export default function createTaskFactory<S>(
     private concurrencyType: ConcurrencyType
     private children: ChildTask[]
     private deferred?: Deferred
-    private currentSubscriptionId: number
-
-    private subscribers: {
-      [subscriptionId: string]: Subscriber
-    }
 
     private lastTaskProp?: {
       hash: string
@@ -113,8 +104,6 @@ export default function createTaskFactory<S>(
       this.children = []
       this.activeCount = 0
       this.totalCount = 0
-      this.currentSubscriptionId = 0
-      this.subscribers = {}
     }
 
     public perform = async (...args: any[]): Promise<void> => {
@@ -131,19 +120,19 @@ export default function createTaskFactory<S>(
         this.deferred = deferred()
       }
 
-      const g = this.f(getState, ...args)
-      const child = new ChildTask(g, this.handleChildStateUpdate)
+      const g = this.f(store.getState, ...args)
+      const child = new ChildTask(g)
 
       this.children.push(child) // TODO: Remove after complete
 
       this.activeCount = this.activeCount + 1
       this.totalCount = this.totalCount + 1
-      this.publish(false, true)
+      store.publish("TASKS_UPDATED")
 
       await child.perform()
 
       this.activeCount = this.activeCount - 1
-      this.publish(false, true)
+      store.publish("TASKS_UPDATED")
 
       const { promise } = this.deferred
 
@@ -153,18 +142,6 @@ export default function createTaskFactory<S>(
       }
 
       return promise
-    }
-
-    public subscribe(subscriber: Subscriber) {
-      const id = String(this.currentSubscriptionId)
-      const unsubscribe = () => {
-        delete this.subscribers[id]
-      }
-
-      this.subscribers[id] = subscriber
-      this.currentSubscriptionId += 1
-
-      return unsubscribe
     }
 
     public cancelAll = (): void => {
@@ -211,20 +188,6 @@ export default function createTaskFactory<S>(
       this.lastTaskProp = { hash, taskProp }
 
       return taskProp
-    }
-
-    private publish = (
-      stateChanged: boolean,
-      taskStateChanged: boolean
-    ): void => {
-      // TODO: What's a better public API for a Subscriber?
-      for (const subscriber of Object.values(this.subscribers)) {
-        subscriber(stateChanged, taskStateChanged)
-      }
-    }
-
-    private handleChildStateUpdate = () => {
-      this.publish(true, false)
     }
   }
 

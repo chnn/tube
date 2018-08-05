@@ -1,16 +1,9 @@
 import * as React from "react"
 
-import createTaskFactory, { Task, TaskFactory, TaskProp } from "./tasks"
-
-interface TaskProps {
-  [k: string]: TaskProp
-}
-
-type MapStateToProps<S> = ((state: S) => { [k: string]: any })
-
-interface MapTasksToProps<S> {
-  [k: string]: Task<S>
-}
+import Consumer, { MapStateToProps, MapTasksToProps } from "./consumer"
+import StoreImpl from "./store"
+import createTaskFactory, { Task, TaskFactory } from "./tasks"
+import { generateId } from "./utils"
 
 type Connect<S> = (
   mstp: MapStateToProps<S>,
@@ -23,96 +16,34 @@ interface InitializeResult<S> {
   task: TaskFactory<S>
 }
 
-interface StateProps {
-  [k: string]: any
-}
-
-interface TubeConsumerState {
-  stateProps: StateProps
-  taskProps: TaskProps
-}
-
-function deriveTaskProps<S>(mttp: MapTasksToProps<S>): TaskProps {
-  return Object.entries(mttp).reduce(
-    (acc, [k, task]) => ({
-      ...acc,
-      [k]: task.getTaskProp()
-    }),
-    {}
-  )
-}
-
-export default function initialize<S extends object>(
-  initialState: S
-): InitializeResult<S> {
-  let state: S = initialState
-
-  function getState(): S {
-    return state
-  }
-
-  function setState(partialState: Partial<S> | null) {
-    if (!partialState) {
-      return
-    }
-
-    // Lots of yucky type assertions here until
-    // https://github.com/Microsoft/TypeScript/pull/13288 lands
-    state = { ...(state as object), ...(partialState as object) } as S
-  }
-
-  const taskFactory = createTaskFactory<S>(getState, setState)
+export default function initialize<S>(initialState: S): InitializeResult<S> {
+  const store = new StoreImpl<S>(initialState)
+  const taskFactory = createTaskFactory<S>(store)
 
   function connect(
-    mstp: MapStateToProps<S>,
-    mttp: MapTasksToProps<S>,
+    mapStateToProps: MapStateToProps<S>,
+    mapTasksToProps: MapTasksToProps<S>,
     Component: React.ComponentClass | React.StatelessComponent
   ) {
-    return class extends React.PureComponent<any, TubeConsumerState> {
-      private unsubscribes: Array<() => void>
-
-      constructor(props: any) {
+    return class extends React.Component {
+      public constructor(props: any) {
         super(props)
 
-        this.unsubscribes = Object.values(mttp).map(task =>
-          task.subscribe(this.handleUpdate)
-        )
-
-        this.state = {
-          stateProps: mstp(getState()),
-          taskProps: deriveTaskProps(mttp)
-        }
-      }
-
-      public componentWillUnmount() {
-        this.unsubscribes.forEach(unsubscribe => unsubscribe())
+        // TODO: If mttp is function, initalize here
       }
 
       public render() {
         return (
-          <Component
-            {...this.props}
-            {...this.state.stateProps}
-            {...this.state.taskProps}
-          />
+          <Consumer<S>
+            store={store}
+            mapStateToProps={mapStateToProps}
+            mapTasksToProps={mapTasksToProps}
+          >
+            {additionalProps => (
+              <Component {...this.props} {...additionalProps} />
+            )}
+          </Consumer>
         )
-      }
-
-      private handleUpdate = (
-        stateChanged: boolean,
-        tasksStateChanged: boolean
-      ): void => {
-        const nextState: any = {}
-
-        if (stateChanged) {
-          nextState.stateProps = mstp(getState())
-        }
-
-        if (tasksStateChanged) {
-          nextState.taskProps = deriveTaskProps(mttp)
-        }
-
-        this.setState(nextState)
       }
     }
   }
