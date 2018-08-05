@@ -47,9 +47,18 @@ export default class Consumer<S> extends React.Component<
     this.unsubscribe()
   }
 
-  public shouldComponentUpdate(/* nextProps, nextState */) {
-    // TODO
-    return true
+  public shouldComponentUpdate(_: any, nextState: ConsumerState) {
+    if (nextState.stateProps !== this.state.stateProps) {
+      return true
+    }
+
+    for (const [key, taskProp] of Object.entries(nextState.taskProps)) {
+      if (this.state.taskProps[key] !== taskProp) {
+        return true
+      }
+    }
+
+    return false
   }
 
   public render() {
