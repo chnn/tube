@@ -2,9 +2,9 @@
 # yarn lockfile v1
 
 
-"@chnn/tube@^0.0.1":
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/@chnn/tube/-/tube-0.0.1.tgz#d58944dc6f1bd7f4e30bc318f51f6be4f4a6eeaa"
+"@chnn/tube@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@chnn/tube/-/tube-0.2.0.tgz#9e073b1f9147bf0738797ccf996a3ae766760bbb"
 
 "@mrmlnc/readdir-enhanced@^2.2.1":
   version "2.2.1"
