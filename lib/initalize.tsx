@@ -7,8 +7,8 @@ import { generateId } from "./utils"
 
 type Connect<S> = (
   mstp: MapStateToProps<S>,
-  mttp: MapTasksToProps<S>,
-  componentClass: React.ComponentClass<any, any> | React.StatelessComponent<any>
+  mttp: MapTasksToProps<S> | (() => MapTasksToProps<S>),
+  componentClass: React.ComponentClass | React.StatelessComponent
 ) => React.ComponentClass
 
 interface InitializeResult<S> {
@@ -18,18 +18,19 @@ interface InitializeResult<S> {
 
 export default function initialize<S>(initialState: S): InitializeResult<S> {
   const store = new StoreImpl<S>(initialState)
-  const taskFactory = createTaskFactory<S>(store)
-
-  function connect(
-    mapStateToProps: MapStateToProps<S>,
-    mapTasksToProps: MapTasksToProps<S>,
-    Component: React.ComponentClass | React.StatelessComponent
-  ) {
+  const task = createTaskFactory<S>(store)
+  const connect: Connect<S> = (mapStateToProps, mapTasksToProps, Component) => {
     return class extends React.Component {
+      private mapTasksToProps: MapTasksToProps<S>
+
       public constructor(props: any) {
         super(props)
 
-        // TODO: If mttp is function, initalize here
+        if (typeof mapTasksToProps === "function") {
+          this.mapTasksToProps = mapTasksToProps()
+        } else {
+          this.mapTasksToProps = mapTasksToProps
+        }
       }
 
       public render() {
@@ -37,7 +38,7 @@ export default function initialize<S>(initialState: S): InitializeResult<S> {
           <Consumer<S>
             store={store}
             mapStateToProps={mapStateToProps}
-            mapTasksToProps={mapTasksToProps}
+            mapTasksToProps={this.mapTasksToProps}
           >
             {additionalProps => (
               <Component {...this.props} {...additionalProps} />
@@ -48,8 +49,5 @@ export default function initialize<S>(initialState: S): InitializeResult<S> {
     }
   }
 
-  return {
-    connect,
-    task: taskFactory
-  }
+  return { connect, task }
 }
