@@ -9,13 +9,19 @@ Features:
 - Powerful concurrency primitives
 - Derived state (no more `isLoading` bookkeeping)
 - In-progress task cancellation
+- Made for TypeScript
 
 Design goals:
 
 - Ease of use
 - Lack of boilerplate
-- Type safety
 - Testable API design
+
+### Installation
+
+```
+npm install @chnn/tube
+```
 
 ### Quickstart
 
