@@ -1,5 +1,5 @@
 .cache
-examples
+demo
 lib
 jest.config.js
 tslint.json

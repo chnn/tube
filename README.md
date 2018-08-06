@@ -81,4 +81,4 @@ export default connect(
 )
 ```
 
-You can [run this example](./examples/counter) yourself.
+You can [run this example](./demo) yourself.

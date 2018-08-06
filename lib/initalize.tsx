@@ -8,8 +8,8 @@ import { generateId } from "./utils"
 type Connect<S> = (
   mstp: MapStateToProps<S>,
   mttp: MapTasksToProps<S> | (() => MapTasksToProps<S>),
-  componentClass: React.ComponentClass | React.StatelessComponent
-) => React.ComponentClass
+  componentClass: React.ComponentClass<any, any> | React.StatelessComponent<any>
+) => React.ComponentClass<any, any>
 
 interface InitializeResult<S> {
   connect: Connect<S>
