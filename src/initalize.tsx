@@ -3,7 +3,6 @@ import * as React from "react"
 import Consumer, { MapStateToProps, MapTasksToProps } from "./consumer"
 import StoreImpl from "./store"
 import createTaskFactory, { Task, TaskFactory } from "./tasks"
-import { generateId } from "./utils"
 
 type Connect<S> = (
   mstp: MapStateToProps<S>,

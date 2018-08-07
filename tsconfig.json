@@ -22,10 +22,10 @@
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node"
   },
-  "include": ["lib"],
+  "include": ["src"],
   "exclude": [
     "**/*.test.*",
-    "lib/setupTests.ts",
+    "src/setupTests.ts",
     "demo",
     "node_modules",
     "dist"
