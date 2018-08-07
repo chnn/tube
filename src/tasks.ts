@@ -170,17 +170,17 @@ export default function createTaskFactory<S>(store: Store<S>): TaskFactory<S> {
         return this.lastTaskProp.taskProp
       }
 
-      const task = this
+      const that = this
       const taskProp = Object.assign(
         function() {
-          return task.perform(...arguments)
+          return that.perform(...arguments)
         },
         {
           isRunning,
           isIdle: !isRunning,
           called: this.totalCount,
           cancelAll() {
-            return task.cancelAll()
+            return that.cancelAll()
           }
         }
       )

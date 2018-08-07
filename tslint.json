@@ -10,7 +10,9 @@
   "rules": {
     "interface-name": false,
     "prettier": [true, "."],
-    "no-unused-variable": [true, {"ignore-pattern": "^_"}]
+    "max-classes-per-file": false,
+    "object-literal-sort-keys": false,
+    "only-arrow-functions": false
   },
   "rulesDirectory": []
 }

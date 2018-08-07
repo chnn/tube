@@ -1,7 +1,7 @@
 export interface Deferred {
   promise: Promise<any>
-  resolve: Function
-  reject: Function
+  resolve: () => void
+  reject: () => void
 }
 
 export function deferred(): Deferred {
@@ -15,7 +15,7 @@ export function deferred(): Deferred {
   return d as Deferred
 }
 
-let id = '0'
+let id = "0"
 
 export function generateId() {
   id = String(+id + 1)
