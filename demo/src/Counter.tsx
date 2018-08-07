@@ -3,7 +3,7 @@ import * as React from "react"
 
 import * as api from "./api"
 import { AppState, connect, task } from "./store"
-import { delay, generateId } from "./utils"
+import { notify } from "./tasks"
 
 interface Props {
   count: number
@@ -32,29 +32,6 @@ const increment = task(function*(getState) {
 
   return { count: getState().count + x }
 }).restartable()
-
-const notify = task(function*(getState, message) {
-  const id = generateId()
-
-  yield {
-    notifications: {
-      ...getState().notifications,
-      [id]: {
-        message,
-        time: Date.now()
-      }
-    }
-  }
-
-  yield delay(3000)
-
-  yield {
-    notifications: {
-      ...getState().notifications,
-      [id]: null
-    }
-  }
-})
 
 const mapStateToProps = (state: AppState) => ({
   count: state.count
