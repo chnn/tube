@@ -1,7 +1,7 @@
 export interface Deferred {
   promise: Promise<any>
-  resolve: () => void
-  reject: () => void
+  resolve: (...args: any[]) => void
+  reject: (...args: any[]) => void
 }
 
 export function deferred(): Deferred {
