@@ -12,9 +12,14 @@ interface Props {
 }
 
 const Counter: React.SFC<Props> = ({ count, onIncrement, onNotify }) => {
-  const onClick = () => {
-    onIncrement()
+  const onClick = async () => {
     onNotify("You clicked the button.")
+
+    try {
+      await onIncrement()
+    } catch (e) {
+      onNotify(`Increment task failed with message: ${e.message}`)
+    }
   }
 
   return (

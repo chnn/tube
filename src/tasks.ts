@@ -49,8 +49,9 @@ export type TaskFactory<S> = (f: TubeGeneratorFunction<S>) => Task<S>
 
 export default function createTaskFactory<S>(store: Store<S>): TaskFactory<S> {
   class ChildTask {
+    public canceled: boolean
+
     private g: TubeIterator<S>
-    private canceled: boolean
 
     constructor(g: TubeIterator<S>) {
       this.g = g
@@ -129,14 +130,28 @@ export default function createTaskFactory<S>(store: Store<S>): TaskFactory<S> {
       this.totalCount = this.totalCount + 1
       store.publish("TASKS_UPDATED")
 
-      await child.perform()
+      let childError
+
+      try {
+        await child.perform()
+      } catch (error) {
+        childError = error
+      }
 
       this.activeCount = this.activeCount - 1
       store.publish("TASKS_UPDATED")
 
+      if (!!childError && child.canceled) {
+        return
+      }
+
       const { promise } = this.deferred
 
-      if (this.activeCount === 0) {
+      if (!!childError && !child.canceled) {
+        this.cancelAll()
+        this.deferred.reject(childError)
+        this.deferred = undefined
+      } else if (this.activeCount === 0) {
         this.deferred.resolve()
         this.deferred = undefined
       }
