@@ -4,6 +4,13 @@ export interface Deferred {
   reject: (...args: any[]) => void
 }
 
+type AnyFunction = (...args: any[]) => any
+
+export interface Effect {
+  f: AnyFunction
+  args: any[]
+}
+
 export function deferred(): Deferred {
   const d: any = {}
 
@@ -21,4 +28,8 @@ export function generateId() {
   id = String(+id + 1)
 
   return id
+}
+
+export function call(f: AnyFunction, ...args: any[]): Effect {
+  return { f, args }
 }

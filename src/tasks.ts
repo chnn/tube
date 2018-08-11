@@ -1,5 +1,5 @@
 import { Store } from "./store"
-import { deferred, Deferred } from "./utils"
+import { deferred, Deferred, Effect } from "./utils"
 
 export interface Task<S> {
   restartable: () => Task<S>
@@ -21,7 +21,7 @@ export interface TaskProps {
 
 interface TubeIteratorResult<S> {
   done: boolean
-  value: Partial<S> | Promise<any>
+  value: Partial<S> | Promise<any> | Effect
 }
 
 interface TubeIterator<S> {
@@ -69,9 +69,18 @@ export default function createTaskFactory<S>(store: Store<S>): TaskFactory<S> {
 
         shouldAdvance = !next.done
 
-        const isPromise = next.value instanceof Promise
-        const result = await next.value
+        let value = next.value
 
+        // If value is an effect, call the effect
+        if (!!next.value.f && !!next.value.args) {
+          value = (value as Effect).f(...value.args)
+        }
+
+        // If value is a promise, wait for it to complete
+        const isPromise = value instanceof Promise
+        const result = await value
+
+        // If value is not a promise and not null, update state with it
         if (!isPromise && !!result) {
           store.setState(result)
           store.publish("STATE_UPDATED")
